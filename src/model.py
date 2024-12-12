@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import torch
 from torch import Tensor
 import torch.optim as optim
+from schedulefree import RAdamScheduleFree
 import gpytorch
 from gpytorch.constraints import Interval
 from gpytorch.distributions import MultivariateNormal
@@ -42,9 +43,10 @@ class SimpleGPModel(Model):
         )
         model = SimpleGP(train_x, train_y, likelihood, **kwargs)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        optimizer = optim.Adam(model.parameters(), lr=kwargs['lr'])
+        optimizer = RAdamScheduleFree(model.parameters())
         model.train()
         likelihood.train()
+        optimizer.train()
         for i in range(kwargs['n_iter']):
             optimizer.zero_grad()
             loss = -mll(model(train_x), train_y)
