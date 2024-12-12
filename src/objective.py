@@ -15,8 +15,8 @@ class Objective(ABC):
     def __call__(self, x: Tensor) -> Tensor:
         self.validate(x)
         value = self.evaluate(x)
-        if self._noise_std > 0.0:
-            value += torch.randn_like(value) * self._noise_std
+        if self.noise_std > 0.0:
+            value += torch.randn_like(value) * self.noise_std
         self.evaluation_count += 1
         return value
     
@@ -50,3 +50,8 @@ class Forrester(Objective):
     def evaluate(self, x: Tensor) -> Tensor:
         return (6 * x - 2) ** 2 * torch.sin(12 * x - 4)
 
+
+class CustomForrester(Forrester):
+    def evaluate(self, x: Tensor) -> Tensor:
+        f = super().evaluate(x)
+        return self.kwargs['A'] * f + self.kwargs['B'] * (x - 0.5) + self.kwargs['C']
