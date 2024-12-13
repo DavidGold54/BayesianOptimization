@@ -4,10 +4,9 @@ from torch import Tensor
 
 # Dataset ====================================================================
 class Dataset:
-    def __init__(self, **kwargs) -> None:
+    def __init__(self) -> None:
         self.inputs = torch.empty(0)
         self.targets = torch.empty(0)
-        self.kwargs = kwargs
         self.best_inputs = torch.empty(0)
         self.best_targets = torch.empty(0)
 
@@ -16,6 +15,14 @@ class Dataset:
     
     def __getitem__(self, index: int) -> tuple[Tensor, Tensor]:
         return self.inputs[index], self.targets[index]
+    
+    def __str__(self) -> str:
+        prefix = 'DATASET:\n'
+        base = f'+INPUTS:\n{self.inputs.flatten()}\n' + \
+               f'+TARGETS:\n{self.targets.flatten()}\n' + \
+               f'+BEST_INPUTS: {self.best_inputs.flatten()}\n' + \
+               f'+BEST_TARGETS: {self.best_targets.flatten()}\n'
+        return prefix + base
 
     def add(self, x: Tensor, y: Tensor) -> None:
         x = torch.atleast_2d(x)
@@ -28,7 +35,7 @@ class Dataset:
             self.targets = torch.cat([self.targets, y], dim=0)
         self.update_best(x, y)
 
-    def get(self, standardize: bool = False) -> tuple[Tensor, ...]:
+    def get(self, standardize: bool = False) -> tuple[Tensor, Tensor]:
         if standardize:
             targets = (self.targets - self.targets.mean()) / self.targets.std()
         else:

@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 import torch
 from torch import Tensor
-import torch.optim as optim
 from schedulefree import RAdamScheduleFree
 import gpytorch
 from gpytorch.constraints import Interval
@@ -18,6 +17,9 @@ from gpytorch.models import ExactGP
 class Model(ABC):
     def __init__(self) -> None:
         self.GP = None
+
+    def __str__(self) -> str:
+        return 'MODEL:\n'
 
     @abstractmethod
     def fit(self, train_x: Tensor, train_y: Tensor) -> None:
@@ -37,6 +39,11 @@ class SimpleGPModel(Model):
     def __init__(self) -> None:
         super().__init__()
 
+    def __str__(self) -> str:
+        prefix = super().__str__()
+        base = f'+GP: {self.GP.__str__()}\n'
+        return prefix + base
+
     def fit(self, train_x: Tensor, train_y: Tensor, **kwargs) -> None:
         likelihood = GaussianLikelihood(
             noise_constraint=Interval(**kwargs['noise_constraint'])
@@ -47,7 +54,7 @@ class SimpleGPModel(Model):
         model.train()
         likelihood.train()
         optimizer.train()
-        for i in range(kwargs['n_iter']):
+        for i in range(kwargs['max_iter']):
             optimizer.zero_grad()
             loss = -mll(model(train_x), train_y)
             loss.backward()
@@ -82,7 +89,21 @@ class SimpleGP(ExactGP):
             outputscale_constraint=Interval(**kwargs['outputscale_constraint'])
         )
 
+    def __str__(self) -> str:
+        prefix = f'{self.__class__.__name__}\n'
+        base = f'+MEAN_MODULE: {self.mean_module.__str__()}\n' + \
+               f'+COVAR_MODULE: {self.covar_module.__str__()}'
+        return prefix + base
+
     def forward(self, x: Tensor) -> MultivariateNormal:
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x, covar_x)
+    
+
+if __name__ == '__main__':
+    model = SimpleGPModel()
+    train_x = torch.tensor([[0.0], [1.0]])
+    train_y = torch.tensor([0.0, 0.5])
+    model.fit(train_x, train_y, max_iter=100, noise_constraint={'lower_bound': 0.0, 'upper_bound': 0.1}, lengthscale_constraint={'lower_bound': 0.0, 'upper_bound': 1.0}, outputscale_constraint={'lower_bound': 0.0, 'upper_bound': 1.0})
+    print(model)
