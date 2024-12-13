@@ -6,8 +6,9 @@ from torch import Tensor
 
 # Base -----------------------------------------------------------------------
 class Objective(ABC):
-    def __init__(self, bounds: Tensor, noise_std: float = 0.0, **kwargs) -> None:
-        self.bounds = bounds
+    def __init__(self, upper_bounds: list, lower_bounds: list, noise_std: float = 0.0, **kwargs) -> None:
+        self.upper_bounds = torch.tensor(upper_bounds)
+        self.lower_bounds = torch.tensor(lower_bounds)
         self.noise_std = noise_std
         self.kwargs = kwargs
         self.evaluation_count = 0
@@ -24,9 +25,9 @@ class Objective(ABC):
         return 'OBJECTIVE:\n'
     
     def sample(self, n: int) -> Tensor:
-        dim = self.bounds.shape[1]
-        lower_bounds = self.bounds[0].unsqueeze(0)
-        upper_bounds = self.bounds[1].unsqueeze(0)
+        dim = self.upper_bounds.shape[-1]
+        lower_bounds = self.lower_bounds.unsqueeze(0)
+        upper_bounds = self.upper_bounds.unsqueeze(0)
         return torch.rand(n, dim) * (upper_bounds - lower_bounds) + lower_bounds
 
     def reset(self) -> None:
@@ -43,20 +44,20 @@ class Objective(ABC):
 
 # Objective Functions ========================================================
 class Forrester(Objective):
-    def __init__(self, bounds: Tensor, noise_std: float = 0.0, **kwargs) -> None:
-        super().__init__(bounds, noise_std, **kwargs)
+    def __init__(self, upper_bounds: list, lower_bounds: list, noise_std: float = 0.0, **kwargs) -> None:
+        super().__init__(upper_bounds, lower_bounds, noise_std, **kwargs)
 
     def __str__(self) -> str:
         prefix = super().__str__()
         base = f'+NAME: {self.__class__.__name__}\n' + \
-               f'+LOWER_BOUNDS:\n{self.bounds[0]}\n' + \
-               f'+UPPER_BOUNDS:\n{self.bounds[1]}\n' + \
+               f'+LOWER_BOUNDS:\n{self.lower_bounds}\n' + \
+               f'+UPPER_BOUNDS:\n{self.upper_bounds}\n' + \
                f'+NOISE_STD: {self.noise_std}\n' + \
                f'+EVALUATION_COUNT: {self.evaluation_count}\n'
         return prefix + base
 
     def validate(self, x: Tensor) -> None:
-        assert (self.bounds[0] <= x).all() and (x <= self.bounds[1]).all()
+        assert (self.lower_bounds <= x).all() and (x <= self.upper_bounds).all()
 
     def evaluate(self, x: Tensor) -> Tensor:
         return (6 * x - 2) ** 2 * torch.sin(12 * x - 4)

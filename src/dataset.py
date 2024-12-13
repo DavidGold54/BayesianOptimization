@@ -18,8 +18,8 @@ class Dataset:
     
     def __str__(self) -> str:
         prefix = 'DATASET:\n'
-        base = f'+INPUTS:\n{self.inputs.flatten()}\n' + \
-               f'+TARGETS:\n{self.targets.flatten()}\n' + \
+        base = f'+INPUTS:\n{self.inputs}\n' + \
+               f'+TARGETS:\n{self.targets}\n' + \
                f'+BEST_INPUTS: {self.best_inputs.flatten()}\n' + \
                f'+BEST_TARGETS: {self.best_targets.flatten()}\n'
         return prefix + base
@@ -57,8 +57,7 @@ class Dataset:
             'inputs': self.inputs,
             'targets': self.targets,
             'best_inputs': self.best_inputs,
-            'best_targets': self.best_targets,
-            'kwargs': self.kwargs
+            'best_targets': self.best_targets
         }
         torch.save(dataset_dict, path)
 
@@ -68,4 +67,3 @@ class Dataset:
         self.targets = dataset_dict['targets']
         self.best_inputs = dataset_dict['best_inputs']
         self.best_targets = dataset_dict['best_targets']
-        self.kwargs = dataset_dict['kwargs']

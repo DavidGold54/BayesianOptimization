@@ -5,7 +5,7 @@ from torch import Tensor
 from torch.quasirandom import SobolEngine
 from schedulefree import RAdamScheduleFree
 
-from model import Model
+from src.model import Model
 
 
 # Base -----------------------------------------------------------------------
@@ -20,10 +20,10 @@ class Acquisition(ABC):
     def __str__(self) -> str:
         return 'ACQUISITION:\n'
     
-    def optimize_query(self, bounds: Tensor, restarts: int = 10) -> Tensor:
-        sobol = SobolEngine(bounds.shape[1], scramble=True)
+    def optimize_query(self, upper_bounds: Tensor, lower_bounds: Tensor, restarts: int = 10) -> Tensor:
+        sobol = SobolEngine(upper_bounds.shape[-1], scramble=True)
         samples = sobol.draw(restarts)
-        samples = samples * (bounds[1] - bounds[0]) + bounds[0]
+        samples = samples * (upper_bounds - lower_bounds) + lower_bounds
         best_x = torch.empty(0)
         best_acq = -torch.inf
         for x in samples:
@@ -60,8 +60,8 @@ class RandomSearch(Acquisition):
         base = f'+NAME: {self.__class__.__name__}\n'
         return prefix + base
 
-    def optimize_query(self, bounds: Tensor, restarts: int = 10) -> Tensor:
-        return torch.rand(1, bounds.shape[1]) * (bounds[1] - bounds[0]) + bounds[0]
+    def optimize_query(self, upper_bounds: Tensor, lower_bounds: Tensor, restarts: int = 10) -> Tensor:
+        return torch.rand(1, upper_bounds.shape[-1]) * (upper_bounds - lower_bounds) + lower_bounds
     
     def optimize_pool(self, grid: Tensor) -> Tensor:
         return grid[torch.randint(0, grid.shape[0], (1,))]
