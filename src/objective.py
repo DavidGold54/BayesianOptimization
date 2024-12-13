@@ -1,3 +1,4 @@
+from pprint import pformat
 from abc import ABC, abstractmethod
 
 import torch
@@ -5,72 +6,168 @@ from torch import Tensor
 
 
 # Base -----------------------------------------------------------------------
-class Objective(ABC):
-    def __init__(self, upper_bounds: list, lower_bounds: list, noise_std: float = 0.0, **kwargs) -> None:
-        self.upper_bounds = torch.tensor(upper_bounds)
-        self.lower_bounds = torch.tensor(lower_bounds)
-        self.noise_std = noise_std
+class BaseObjective(ABC):
+    def __init__(self, **kwargs) -> None:
         self.kwargs = kwargs
         self.evaluation_count = 0
 
+    def __str__(self) -> str:
+        init_bar    = '=' * 79 + '\n'
+        title       = f'🎯 Objective Function: {self.__class__.__name__}\n'
+        divider     = '-' * 79 + '\n'
+        base        = f'- Dimension:       {len(self.kwargs["lower_bounds"])}\n' + \
+                      f'- Lower bounds:    {self.kwargs["lower_bounds"]}\n' + \
+                      f'- Upper bounds:    {self.kwargs["upper_bounds"]}\n' + \
+                      f'- Noise stddev:    {self.kwargs["noise_std"]}\n' + \
+                      f'- Coefficients A:  {self.kwargs["A"]}\n'
+        prefix      = '\n' + init_bar + title + divider + base
+        return prefix
+    
     def __call__(self, x: Tensor) -> Tensor:
         self.validate(x)
-        value = self.evaluate(x)
-        if self.noise_std > 0.0:
-            value += torch.randn_like(value) * self.noise_std
-        self.evaluation_count += 1
-        return value
-    
-    def __str__(self) -> str:
-        return 'OBJECTIVE:\n'
-    
-    def sample(self, n: int) -> Tensor:
-        dim = self.upper_bounds.shape[-1]
-        lower_bounds = self.lower_bounds.unsqueeze(0)
-        upper_bounds = self.upper_bounds.unsqueeze(0)
-        return torch.rand(n, dim) * (upper_bounds - lower_bounds) + lower_bounds
+        values = self.evaluate(x)
+        if self.kwargs['noise_std'] > 0.0:
+            values += torch.randn_like(values) * self.kwargs['noise_std']
+        self.evaluation_count += values.shape[0]
+        return values
 
-    def reset(self) -> None:
+    def reset_evaluation_count(self) -> None:
         self.evaluation_count = 0
 
-    @abstractmethod
+    def sample(self, n: int) -> Tensor:
+        dim = len(self.kwargs['lower_bounds'])
+        lower_bounds = torch.tensor([self.kwargs['lower_bounds']])
+        upper_bounds = torch.tensor([self.kwargs['upper_bounds']])
+        bounds = upper_bounds - lower_bounds
+        samples = torch.rand(n, dim) * bounds + lower_bounds
+        return samples
+    
     def validate(self, x: Tensor) -> None:
-        raise NotImplementedError
+        lower_bounds = torch.tensor([self.kwargs['lower_bounds']])
+        upper_bounds = torch.tensor([self.kwargs['upper_bounds']])
+        assert (lower_bounds <= x).all() and (x <= upper_bounds).all()
 
     @abstractmethod
     def evaluate(self, x: Tensor) -> Tensor:
         raise NotImplementedError
+
+
+# Wrapper ====================================================================
+class Objective:
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.set_objective()
+
+    def __str__(self) -> str:
+        return self.objective.__str__()
+    
+    def __call__(self, x: Tensor) -> Tensor:
+        return self.objective(x)
+    
+    def reset_evaluation_count(self) -> None:
+        self.objective.reset_evaluation_count()
+    
+    def sample(self, n: int) -> Tensor:
+        return self.objective.sample(n)
+    
+    def validate(self, x: Tensor) -> None:
+        self.objective.validate(x)
+    
+    def evaluate(self, x: Tensor) -> Tensor:
+        return self.objective.evaluate(x)
+    
+    def set_objective(self) -> None:
+        if self.kwargs['name'] == 'forrester':
+            self.objective = Forrester(**self.kwargs)
+        elif self.kwargs['name'] == 'branin':
+            self.objective = Branin(**self.kwargs)
+        elif self.kwargs['name'] == 'goldstein_price':
+            self.objective = GoldSteinPrice(**self.kwargs)
+        elif self.kwargs['name'] == 'logarithmic_goldstein_price':
+            self.objective = LogarithmicGoldsteinPrice(**self.kwargs)
+        else:
+            raise ValueError(f'Objective function {self.kwargs["name"]} not found')
 
 
 # Objective Functions ========================================================
-class Forrester(Objective):
-    def __init__(self, upper_bounds: list, lower_bounds: list, noise_std: float = 0.0, **kwargs) -> None:
-        super().__init__(upper_bounds, lower_bounds, noise_std, **kwargs)
+class Forrester(BaseObjective):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     def __str__(self) -> str:
         prefix = super().__str__()
-        base = f'+NAME: {self.__class__.__name__}\n' + \
-               f'+LOWER_BOUNDS:\n{self.lower_bounds}\n' + \
-               f'+UPPER_BOUNDS:\n{self.upper_bounds}\n' + \
-               f'+NOISE_STD: {self.noise_std}\n' + \
-               f'+EVALUATION_COUNT: {self.evaluation_count}\n'
-        return prefix + base
-
-    def validate(self, x: Tensor) -> None:
-        assert (self.lower_bounds <= x).all() and (x <= self.upper_bounds).all()
+        base = f'- Coefficients B:  {self.kwargs["B"]}\n' + \
+               f'- Coefficients C:  {self.kwargs["C"]}\n'
+        suffix = '=' * 79 + '\n'
+        return prefix + base + suffix
 
     def evaluate(self, x: Tensor) -> Tensor:
-        return (6 * x - 2) ** 2 * torch.sin(12 * x - 4)
+        A = self.kwargs['A']
+        B = self.kwargs['B']
+        C = self.kwargs['C']
+        f = (6 * x - 2) ** 2 * torch.sin(12 * x - 4)
+        return A * f + B * (x - 0.5) + C
 
 
-class CustomForrester(Forrester):
+class Branin(BaseObjective):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
     def __str__(self) -> str:
         prefix = super().__str__()
-        base = f'+A: {self.kwargs["A"]}\n' + \
-               f'+B: {self.kwargs["B"]}\n' + \
-               f'+C: {self.kwargs["C"]}\n'
-        return prefix + base
+        suffix = '=' * 79 + '\n'
+        return prefix + suffix
+
+    def evaluate(self, x: Tensor) -> Tensor:
+        A = self.kwargs['A']
+        a = 1.0
+        b = 5.1 / (4 * torch.pi ** 2)
+        c = 5.0 / torch.pi
+        r = 6.0
+        s = 10.0
+        t = 1.0 / (8 * torch.pi)
+        f1 = a * (x[:, 1] - b * x[:, 0] ** 2 + c * x[:, 0] - r) ** 2
+        f2 = s * (1 - t) * torch.cos(x[:, 0])
+        f3 = s
+        return A * (f1 + f2 + f3)
+
+
+class GoldSteinPrice(BaseObjective):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def __str__(self) -> str:
+        prefix = super().__str__()
+        suffix = '=' * 79 + '\n'
+        return prefix + suffix
+
+    def evaluate(self, x: Tensor) -> Tensor:
+        A = self.kwargs['A']
+        f1 = (x[:, 0] + x[:, 1] + 1) ** 2
+        f2 = 19 - 14 * x[:, 0] + 3 * x[:, 0] ** 2 - \
+             14 * x[:, 1] + 6 * x[:, 0] * x[:, 1] + 3 * x[:, 1] ** 2
+        f3 = (2 * x[:, 0] - 3 * x[:, 1]) ** 2
+        f4 = 18 - 32 * x[:, 0] + 12 * x[:, 0] ** 2 + \
+             48 * x[:, 1] - 36 * x[:, 0] * x[:, 1] + 27 * x[:, 1] ** 2
+        return A * ((1 + f1 * f2) * (30 + f3 * f4))
+    
+
+class LogarithmicGoldsteinPrice(BaseObjective):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def __str__(self) -> str:
+        prefix = super().__str__()
+        suffix = '=' * 79 + '\n'
+        return prefix + suffix
     
     def evaluate(self, x: Tensor) -> Tensor:
-        f = super().evaluate(x)
-        return self.kwargs['A'] * f + self.kwargs['B'] * (x - 0.5) + self.kwargs['C']
+        x = 4 * x - 2
+        A = self.kwargs['A']
+        f1 = (x[:, 0] + x[:, 1] + 1) ** 2
+        f2 = 19 - 14 * x[:, 0] + 3 * x[:, 0] ** 2 - \
+             14 * x[:, 1] + 6 * x[:, 0] * x[:, 1] + 3 * x[:, 1] ** 2
+        f3 = (2 * x[:, 0] - 3 * x[:, 1]) ** 2
+        f4 = 18 - 32 * x[:, 0] + 12 * x[:, 0] ** 2 + \
+             48 * x[:, 1] - 36 * x[:, 0] * x[:, 1] + 27 * x[:, 1] ** 2
+        return A * (torch.log((1 + f1 * f2) * (30 + f3 * f4)) - 8.693) / 2.427
