@@ -12,7 +12,7 @@ class BaseObjective(ABC):
         self.evaluation_count = 0
 
     def __str__(self) -> str:
-        init_bar    = '=' * 79 + '\n'
+        bar         = '=' * 79 + '\n'
         title       = f'🎯 Objective Function: {self.__class__.__name__}\n'
         divider     = '-' * 79 + '\n'
         base        = f'- Dimension:       {len(self.kwargs["lower_bounds"])}\n' + \
@@ -20,7 +20,7 @@ class BaseObjective(ABC):
                       f'- Upper bounds:    {self.kwargs["upper_bounds"]}\n' + \
                       f'- Noise stddev:    {self.kwargs["noise_std"]}\n' + \
                       f'- Coefficients A:  {self.kwargs["A"]}\n'
-        prefix      = '\n' + init_bar + title + divider + base
+        prefix      = '\n' + bar + title + divider + base
         return prefix
     
     def __call__(self, x: Tensor) -> Tensor:

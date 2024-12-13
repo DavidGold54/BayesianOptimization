@@ -1,3 +1,5 @@
+from pprint import pformat
+
 import torch
 from torch import Tensor
 
@@ -17,12 +19,17 @@ class Dataset:
         return self.inputs[index], self.targets[index]
     
     def __str__(self) -> str:
-        prefix = 'DATASET:\n'
-        base = f'+INPUTS:\n{self.inputs}\n' + \
-               f'+TARGETS:\n{self.targets}\n' + \
-               f'+BEST_INPUTS: {self.best_inputs.flatten()}\n' + \
-               f'+BEST_TARGETS: {self.best_targets.flatten()}\n'
-        return prefix + base
+        bar         = '=' * 79 + '\n'
+        title       = '📁 Dataset\n'
+        divider     = '-' * 79 + '\n'
+        base        = f'- Inputs:\n' + \
+                      f'{pformat(self.inputs.tolist(), compact=True)}\n' + \
+                      f'- Targets:\n' + \
+                      f'{pformat(self.targets.tolist(), compact=True)}\n' + \
+                      f'- Best inputs: {pformat(self.best_inputs.tolist(), compact=True)}\n' + \
+                      f'- Best targets: {pformat(self.best_targets.tolist(), compact=True)}\n'
+        suffix      = bar
+        return '\n' + bar + title + divider + base + suffix
 
     def add(self, x: Tensor, y: Tensor) -> None:
         x = torch.atleast_2d(x)
