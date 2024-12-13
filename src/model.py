@@ -99,11 +99,4 @@ class SimpleGP(ExactGP):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x, covar_x)
-    
 
-if __name__ == '__main__':
-    model = SimpleGPModel()
-    train_x = torch.tensor([[0.0], [1.0]])
-    train_y = torch.tensor([0.0, 0.5])
-    model.fit(train_x, train_y, max_iter=100, noise_constraint={'lower_bound': 0.0, 'upper_bound': 0.1}, lengthscale_constraint={'lower_bound': 0.0, 'upper_bound': 1.0}, outputscale_constraint={'lower_bound': 0.0, 'upper_bound': 1.0})
-    print(model)

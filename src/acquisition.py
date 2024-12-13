@@ -25,20 +25,20 @@ class Acquisition(ABC):
         samples = sobol.draw(restarts)
         samples = samples * (bounds[1] - bounds[0]) + bounds[0]
         best_x = torch.empty(0)
-        best_y = -torch.inf
+        best_acq = -torch.inf
         for x in samples:
             x.requires_grad = True
             optimizer = RAdamScheduleFree([x])
             optimizer.train()
             for i in range(self.kwargs['max_iter']):
                 optimizer.zero_grad()
-                loss = -self(x)
-                loss.backward()
+                acq = -self(x)
+                acq.backward()
                 optimizer.step()
-            x.requires_grad = False
-            if self(x) > best_y:
+            if acq > best_acq:
                 best_x = x
-                best_y = self(x)
+                best_acq = acq
+        best_x.requires_grad = False
         return best_x
     
     def optimize_pool(self, grid: Tensor) -> Tensor:
