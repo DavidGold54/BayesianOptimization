@@ -148,13 +148,13 @@ class Acquisition:
         return self.acquisition.optimize(pool)
     
     def set_acquisition(self) -> None:
-        if self.kwargs['name'] == 'random_search':
+        if self.kwargs['name'] == 'RandomSearch':
             self.acquisition = RandomSearch(**self.kwargs)
-        elif self.kwargs['name'] == 'expected_improvement':
+        elif self.kwargs['name'] == 'ExpectedImprovement':
             self.acquisition = ExpectedImprovement(**self.kwargs)
-        elif self.kwargs['name'] == 'probability_of_improvement':
+        elif self.kwargs['name'] == 'ProbabilityOfImprovement':
             self.acquisition = ProbabilityOfImprovement(**self.kwargs)
-        elif self.kwargs['name'] == 'upper_confidence_bound':
+        elif self.kwargs['name'] == 'UpperConfidenceBound':
             self.acquisition = UpperConfidenceBound(**self.kwargs)
         else:
             raise ValueError(f'Acquisition {self.kwargs["name"]} not found')

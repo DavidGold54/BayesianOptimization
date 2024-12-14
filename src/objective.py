@@ -77,13 +77,13 @@ class Objective:
         return self.objective.evaluate(x)
     
     def set_objective(self) -> None:
-        if self.kwargs['name'] == 'forrester':
+        if self.kwargs['name'] == 'Forrester':
             self.objective = Forrester(**self.kwargs)
-        elif self.kwargs['name'] == 'branin':
+        elif self.kwargs['name'] == 'Branin':
             self.objective = Branin(**self.kwargs)
-        elif self.kwargs['name'] == 'goldstein_price':
+        elif self.kwargs['name'] == 'GoldSteinPrice':
             self.objective = GoldSteinPrice(**self.kwargs)
-        elif self.kwargs['name'] == 'logarithmic_goldstein_price':
+        elif self.kwargs['name'] == 'LogarithmicGoldsteinPrice':
             self.objective = LogarithmicGoldsteinPrice(**self.kwargs)
         else:
             raise ValueError(f'Objective {self.kwargs["name"]} not found')

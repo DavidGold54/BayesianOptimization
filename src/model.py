@@ -59,7 +59,7 @@ class Model:
         return self.model.sample(test_x, n)
     
     def set_model(self) -> None:
-        if self.kwargs['name'] == 'simple_gp':
+        if self.kwargs['name'] == 'SimpleGP':
             self.model = SimpleGPModel(**self.kwargs)
         else:
             raise ValueError(f'Model {self.kwargs["name"]} not found')
