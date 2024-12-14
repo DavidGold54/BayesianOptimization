@@ -95,14 +95,15 @@ class SimpleGPModel(BaseModel):
         model = SimpleGP(train_x, train_y, likelihood, **self.kwargs)
         mll = ExactMarginalLogLikelihood(likelihood, model)
         optimizer = RAdamScheduleFree(model.parameters())
-        start_log = f'\n🚀 Training Initialization 🚀\n' + \
+        start_log = f'Training of {self.__class__.__name__} initiated.\n' + \
+                    f'🚀 Training Initialization 🚀\n' + \
                     f'-' * 79 + '\n' + \
                     f'Model:             {self.__class__.__name__}\n' + \
                     f'Max Iterations:    {self.kwargs["max_iter"]}\n' + \
                     f'Optimizer:         RAdamScheduleFree\n' + \
                     f'Learning Rate:     {optimizer.defaults["lr"]}\n' + \
                     f'Parameters:        {len(list(model.parameters()))}\n' + \
-                    f'-' * 79 + '\n'
+                    f'-' * 79
         if self.kwargs['logger'] is not None:
             self.kwargs['logger'].info(start_log)
         else:
@@ -123,17 +124,16 @@ class SimpleGPModel(BaseModel):
                     print(log)
         self.GP = model
         end_time = time.perf_counter()
-        end_log = f'\n🏁 Training Completed 🏁\n' + \
+        end_log = f'Training of {self.__class__.__name__} completed.\n' + \
+                  f'🏁 Training Completed 🏁\n' + \
                   f'-' * 79 + '\n' + \
                   f'Best Loss: {loss.item()}\n' + \
                   f'Total Training Time: {end_time - start_time:.2f}s\n' + \
                   f'-' * 79 + '\n'
         if self.kwargs['logger'] is not None:
             self.kwargs['logger'].info(end_log)
-            self.kwargs['logger'].info(self)
         else:
             print(end_log)
-            print(self)
 
     def predict(self, test_x: Tensor) -> tuple[Tensor, Tensor]:
         self.GP.eval()

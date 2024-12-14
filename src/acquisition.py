@@ -14,7 +14,7 @@ class BaseAcquisition(ABC):
         self.kwargs = kwargs
 
     def __str__(self) -> str:
-        bar     = '=' * 79 + '\n'
+        bar     = '\n' + '=' * 79 + '\n'
         title   = f'🔍 Acquisition Function: {self.__class__.__name__}\n'
         divider = '-' * 79 + '\n'
         return bar + title + divider
@@ -39,7 +39,7 @@ class BaseAcquisition(ABC):
                     f'Restarts:         {self.kwargs["restarts"]}\n' + \
                     f'Max Iterations:   {self.kwargs["max_iter"]}\n' + \
                     f'Optimizer:        RAdamScheduleFree\n' + \
-                    f'-' * 79 + '\n'
+                    f'-' * 79
         if self.kwargs['logger'] is not None:
             self.kwargs['logger'].info(self)
             self.kwargs['logger'].info(start_log)
@@ -82,10 +82,8 @@ class BaseAcquisition(ABC):
                   f'-' * 79 + '\n'
         if self.kwargs['logger'] is not None:
             self.kwargs['logger'].info(end_log)
-            self.kwargs['logger'].info(self)
         else:
             print(end_log)
-            print(self)
         return best_x
     
     def optimize_pool(self, pool: Tensor) -> Tensor:
