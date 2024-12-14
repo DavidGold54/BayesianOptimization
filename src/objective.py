@@ -16,8 +16,8 @@ class BaseObjective(ABC):
         title       = f'🎯 Objective Function: {self.__class__.__name__}\n'
         divider     = '-' * 79 + '\n'
         base        = f'- Dimension:       {len(self.kwargs["lower_bounds"])}\n' + \
-                      f'- Lower bounds:    {self.kwargs["lower_bounds"]}\n' + \
-                      f'- Upper bounds:    {self.kwargs["upper_bounds"]}\n' + \
+                      f'- Lower bounds:    {pformat(self.kwargs["lower_bounds"], compact=True)}\n' + \
+                      f'- Upper bounds:    {pformat(self.kwargs["upper_bounds"], compact=True)}\n' + \
                       f'- Noise stddev:    {self.kwargs["noise_std"]}\n' + \
                       f'- Coefficients A:  {self.kwargs["A"]}\n'
         prefix      = '\n' + bar + title + divider + base
@@ -86,7 +86,7 @@ class Objective:
         elif self.kwargs['name'] == 'logarithmic_goldstein_price':
             self.objective = LogarithmicGoldsteinPrice(**self.kwargs)
         else:
-            raise ValueError(f'Objective function {self.kwargs["name"]} not found')
+            raise ValueError(f'Objective {self.kwargs["name"]} not found')
 
 
 # Objective Functions ========================================================

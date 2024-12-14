@@ -1,3 +1,5 @@
+import time
+from pprint import pformat
 from abc import ABC, abstractmethod
 
 import torch
@@ -14,13 +16,17 @@ from gpytorch.models import ExactGP
 
 
 # Base -----------------------------------------------------------------------
-class Model(ABC):
-    def __init__(self) -> None:
+class BaseModel(ABC):
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
         self.GP = None
 
     def __str__(self) -> str:
-        return 'MODEL:\n'
-
+        bar         = '\n' + '=' * 79 + '\n'
+        title       = f'🤖 Model: {self.__class__.__name__}\n'
+        divider     = '-' * 79 + '\n'
+        return bar + title + divider
+    
     @abstractmethod
     def fit(self, train_x: Tensor, train_y: Tensor) -> None:
         raise NotImplementedError
@@ -28,53 +34,121 @@ class Model(ABC):
     @abstractmethod
     def predict(self, test_x: Tensor) -> tuple[Tensor, Tensor]:
         raise NotImplementedError
-
+    
     @abstractmethod
     def sample(self, test_x: Tensor, n: int) -> Tensor:
         raise NotImplementedError
+    
+
+# Wrapper ====================================================================
+class Model:
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.set_model()
+
+    def __str__(self) -> str:
+        return self.model.__str__()
+    
+    def fit(self, train_x: Tensor, train_y: Tensor) -> None:
+        self.model.fit(train_x, train_y)
+
+    def predict(self, test_x: Tensor) -> tuple[Tensor, Tensor]:
+        return self.model.predict(test_x)
+    
+    def sample(self, test_x: Tensor, n: int) -> Tensor:
+        return self.model.sample(test_x, n)
+    
+    def set_model(self) -> None:
+        if self.kwargs['name'] == 'simple_gp':
+            self.model = SimpleGPModel(**self.kwargs)
+        else:
+            raise ValueError(f'Model {self.kwargs["name"]} not found')
 
 
 # Models =====================================================================
-class SimpleGPModel(Model):
-    def __init__(self) -> None:
-        super().__init__()
+class SimpleGPModel(BaseModel):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     def __str__(self) -> str:
         prefix = super().__str__()
-        base = f'+GP: {self.GP.__str__()}\n'
+        lengthscale = self.GP.covar_module.base_kernel.lengthscale
+        outputscale = self.GP.covar_module.outputscale
+        noise = self.GP.likelihood.noise_covar.noise
+        mean = self.GP.mean_module.constant
+        base = f'Input Dimension:   {self.GP.train_inputs[0].shape[1]}\n' + \
+               f'Training Data:     {self.GP.train_inputs[0].shape[0]}\n' + \
+               f'Kernel:\n' + \
+               f'{self.GP.covar_module.__str__()}\n\n' + \
+               f'🔧 Hyperparameters:\n' + \
+               f'- Length Scale:    {pformat(lengthscale.tolist())}\n' + \
+               f'- Signal Variance: {pformat(outputscale.tolist())}\n' + \
+               f'- Noise Variance:  {pformat(noise.tolist())}\n' + \
+               f'- Mean Constant:   {pformat(mean.tolist())}\n' + \
+               f'=' * 79 + '\n'
         return prefix + base
-
-    def fit(self, train_x: Tensor, train_y: Tensor, **kwargs) -> None:
+    
+    def fit(self, train_x: Tensor, train_y: Tensor) -> None:
         likelihood = GaussianLikelihood(
-            noise_constraint=Interval(**kwargs['noise_constraint'])
+            noise_constraint=Interval(**self.kwargs['noise_constraint'])
         )
-        model = SimpleGP(train_x, train_y, likelihood, **kwargs)
-        mll = ExactMarginalLogLikelihood(model.likelihood, model)
+        model = SimpleGP(train_x, train_y, likelihood, **self.kwargs)
+        mll = ExactMarginalLogLikelihood(likelihood, model)
         optimizer = RAdamScheduleFree(model.parameters())
-        model.train()
-        likelihood.train()
-        optimizer.train()
-        for i in range(kwargs['max_iter']):
+        start_log = f'\n🚀 Training Initialization 🚀\n' + \
+                    f'-' * 79 + '\n' + \
+                    f'Model:             {self.__class__.__name__}\n' + \
+                    f'Max Iterations:    {self.kwargs["max_iter"]}\n' + \
+                    f'Optimizer:         RAdamScheduleFree\n' + \
+                    f'Learning Rate:     {optimizer.defaults["lr"]}\n' + \
+                    f'Parameters:        {len(list(model.parameters()))}\n' + \
+                    f'-' * 79 + '\n'
+        if self.kwargs['logger'] is not None:
+            self.kwargs['logger'].info(start_log)
+        else:
+            print(start_log)
+        start_time = time.perf_counter()
+        model.train(); likelihood.train(); optimizer.train()
+        for i in range(self.kwargs['max_iter']):
             optimizer.zero_grad()
             loss = -mll(model(train_x), train_y)
             loss.backward()
             optimizer.step()
+            if (i + 1) % 50 == 0:
+                log = f'[Iter {i+1}/{self.kwargs["max_iter"]}]' + \
+                      f' - Loss: {loss.item():.4f}'
+                if self.kwargs['logger'] is not None:
+                    self.kwargs['logger'].info(log)
+                else:
+                    print(log)
         self.GP = model
+        end_time = time.perf_counter()
+        end_log = f'\n🏁 Training Completed 🏁\n' + \
+                  f'-' * 79 + '\n' + \
+                  f'Best Loss: {loss.item()}\n' + \
+                  f'Total Training Time: {end_time - start_time:.2f}s\n' + \
+                  f'-' * 79 + '\n'
+        if self.kwargs['logger'] is not None:
+            self.kwargs['logger'].info(end_log)
+            self.kwargs['logger'].info(self)
+        else:
+            print(end_log)
+            print(self)
 
     def predict(self, test_x: Tensor) -> tuple[Tensor, Tensor]:
         self.GP.eval()
-        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+        with gpytorch.settings.fast_pred_var():
             pred = self.GP(test_x)
             mean, std = pred.mean, pred.stddev
         return mean, std
-
+    
     def sample(self, test_x: Tensor, n: int) -> Tensor:
         self.GP.eval()
         with torch.no_grad(), gpytorch.settings.fast_pred_samples():
             pred = self.GP(test_x)
             samples = pred.sample(n)
         return samples
-    
+
 
 # GPs ------------------------------------------------------------------------
 class SimpleGP(ExactGP):
@@ -89,14 +163,7 @@ class SimpleGP(ExactGP):
             outputscale_constraint=Interval(**kwargs['outputscale_constraint'])
         )
 
-    def __str__(self) -> str:
-        prefix = f'{self.__class__.__name__}\n'
-        base = f'+MEAN_MODULE: {self.mean_module.__str__()}\n' + \
-               f'+COVAR_MODULE: {self.covar_module.__str__()}'
-        return prefix + base
-
     def forward(self, x: Tensor) -> MultivariateNormal:
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x, covar_x)
-

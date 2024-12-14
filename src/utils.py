@@ -52,10 +52,8 @@ class Logger:
         self.general_logger = logging.getLogger('general')
         self.result_logger = logging.getLogger('result')
         stream_handler = logging.StreamHandler()
-        general_file_handler = logging.FileHandler(filename=f'{result_dir}/general.log',
-                                                   mode='w', encoding='utf-8')
-        result_file_handler = logging.FileHandler(filename=f'{result_dir}/result.log',
-                                                  mode='w', encoding='utf-8')
+        general_file_handler = logging.FileHandler(filename=f'{result_dir}/general.log', mode='w', encoding='utf-8')
+        result_file_handler = logging.FileHandler(filename=f'{result_dir}/result.log', mode='w', encoding='utf-8')
         if len(self.general_logger.handlers) == 0:
             self.general_logger.addHandler(stream_handler)
             self.general_logger.addHandler(general_file_handler)
