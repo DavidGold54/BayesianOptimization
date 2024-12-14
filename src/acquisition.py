@@ -48,11 +48,9 @@ class BaseAcquisition(ABC):
             print(start_log)
         start_time = time.perf_counter()
         for i, sample in enumerate(samples):
-            log = f'Restart {i+1}/{self.kwargs["restarts"]} : Initial Point {sample.item()}'
-            if self.kwargs['logger'] is not None:
+            log = f'Restart {i+1:> 3d}/{self.kwargs["restarts"]:> 3d} : Initial Point {sample.item()}'
+            if self.kwargs['logger'] is not None and self.kwargs['verbose']:
                 self.kwargs['logger'].info(log)
-            else:
-                print(log)
             x = sample.clone().requires_grad_(True)
             optimizer = RAdamScheduleFree([x])
             optimizer.train()
@@ -64,10 +62,8 @@ class BaseAcquisition(ABC):
                 if (j + 1) % 50 == 0:
                     log = f'[Iter {j+1}/{self.kwargs["max_iter"]}]' + \
                           f' - Loss: {loss.item():.4f}'
-                    if self.kwargs['logger'] is not None:
+                    if self.kwargs['logger'] is not None and self.kwargs['verbose']:
                         self.kwargs['logger'].info(log)
-                    else:
-                        print(log)
             is_in_bounds = (x >= lower_bounds).all() and (x <= upper_bounds).all()
             if loss < best_loss and is_in_bounds:
                 best_x = x.clone()
